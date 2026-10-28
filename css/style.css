@@ -1,0 +1,133 @@
+:root {
+  --bg: #07071a;
+  --panel: #12123a;
+  --edge: #3a3a8a;
+  --text: #e8ecff;
+  --gold: #ffd400;
+  --p1: #2f6bff;
+  --p2: #ff3b3b;
+  --font: "Press Start 2P", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+body {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 10px 28px;
+}
+
+.crt {
+  position: relative;
+  padding: 14px;
+  background: #1a1a2e;
+  border: 4px solid #000;
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 4px var(--edge),
+    0 0 40px rgba(80, 80, 255, 0.35),
+    inset 0 0 30px #000;
+}
+
+#game {
+  display: block;
+  width: min(94vw, calc(78vh * 4 / 3), 960px);
+  height: auto;
+  aspect-ratio: 4 / 3;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  background: #000;
+  border-radius: 6px;
+  outline: none;
+}
+
+#game:focus-visible { box-shadow: 0 0 0 3px var(--gold); }
+
+.scanlines {
+  pointer-events: none;
+  position: absolute;
+  inset: 14px;
+  border-radius: 6px;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.22) 3px
+  );
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.6);
+}
+
+.help {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 960px;
+}
+
+.card {
+  background: var(--panel);
+  border: 3px solid var(--edge);
+  padding: 10px 14px;
+  min-width: 230px;
+  box-shadow: 4px 4px 0 #000;
+}
+
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 10px;
+  color: var(--gold);
+}
+
+.card.p1 h2 { color: #6f9bff; }
+.card.p2 h2 { color: #ff7a7a; }
+
+.card p {
+  margin: 6px 0;
+  font-size: 8px;
+  line-height: 1.8;
+}
+
+.card .small { opacity: 0.7; }
+
+kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 2px 4px;
+  margin-right: 3px;
+  font-family: var(--font);
+  font-size: 8px;
+  text-align: center;
+  color: #000;
+  background: var(--text);
+  border-bottom: 2px solid #888;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scanlines { display: none; }
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bey Battle: Metal Fury — Torneig Retro</title>
+  <meta name="description" content="Joc PvP retro pixel art de baldufes de batalla inspirat en Metal Fury.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <h1 class="sr-only">Bey Battle: Metal Fury</h1>
+
+    <div class="crt">
+      <canvas id="game" width="320" height="240" tabindex="0"
+              aria-label="Joc de batalla de baldufes. Fes servir el teclat per jugar."></canvas>
+      <div class="scanlines" aria-hidden="true"></div>
+    </div>
+
+    <section class="help" aria-label="Controls">
+      <div class="card p1">
+        <h2>JUGADOR 1</h2>
+        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moure</p>
+        <p><kbd>ESPAI</kbd> llançar / poder</p>
+        <p class="small">En torneig també: fletxes + ENTER</p>
+      </div>
+      <div class="card p2">
+        <h2>JUGADOR 2</h2>
+        <p><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> moure</p>
+        <p><kbd>ENTER</kbd> llançar / poder</p>
+      </div>
+      <div class="card gen">
+        <h2>GENERAL</h2>
+        <p><kbd>ENTER</kbd> confirmar</p>
+        <p><kbd>ESC</kbd> pausa / enrere</p>
+        <p><kbd>M</kbd> música on/off</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/audio.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
