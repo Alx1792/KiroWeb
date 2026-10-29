@@ -1,0 +1,17 @@
+import { readFile,writeFile } from 'node:fs/promises';
+import * as THREE from 'three';
+import { STLLoader } from 'three/addons/loaders/STLLoader.js';
+import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { SimplifyModifier } from 'three/addons/modifiers/SimplifyModifier.js';
+import { mergeVertices } from 'three/addons/utils/BufferGeometryUtils.js';
+if(typeof FileReader==='undefined')globalThis.FileReader=class{readAsArrayBuffer(blob){blob.arrayBuffer().then((value)=>{this.result=value;this.onloadend?.({target:this})},(error)=>this.onerror?.(error))}readAsDataURL(blob){blob.arrayBuffer().then((value)=>{this.result=`data:${blob.type};base64,${Buffer.from(value).toString('base64')}`;this.onloadend?.({target:this})},(error)=>this.onerror?.(error))}};
+const [input,output]=process.argv.slice(2);if(!input||!output)throw new Error('Ús: node tools/convert-stl-to-glb.mjs input.stl output.glb');
+const data=await readFile(input),arrayBuffer=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);let geometry=new STLLoader().parse(arrayBuffer);geometry.deleteAttribute('normal');geometry=mergeVertices(geometry,.0001);const originalVertices=geometry.attributes.position.count,targetVertices=12000;if(originalVertices>targetVertices)geometry=await new SimplifyModifier().modify(geometry,originalVertices-targetVertices);geometry.computeVertexNormals();geometry.computeBoundingBox();
+const box=geometry.boundingBox,size=box.getSize(new THREE.Vector3()),scale=7.4/Math.max(size.x,size.z*2);geometry.translate(-(box.min.x+box.max.x)/2,-box.min.y,-box.min.z);geometry.scale(scale,scale*.68,scale);
+const root=new THREE.Group();root.name='CC0_Spinner';
+const layer=new THREE.Group();layer.name='Bey_Layer';root.add(layer);
+const materialA=new THREE.MeshStandardMaterial({color:'#22a9c7',metalness:.72,roughness:.25}),materialB=new THREE.MeshStandardMaterial({color:'#7d2ed0',metalness:.62,roughness:.3});
+const halfA=new THREE.Mesh(geometry,materialA);halfA.name='Spinner_Half_A';layer.add(halfA);const halfB=new THREE.Mesh(geometry.clone(),materialB);halfB.name='Spinner_Half_B';halfB.scale.z=-1;layer.add(halfB);
+const disc=new THREE.Group();disc.name='Bey_Disc';root.add(disc);const discMesh=new THREE.Mesh(new THREE.CylinderGeometry(2.65,2.55,.38,40),new THREE.MeshStandardMaterial({color:'#c1cad5',metalness:.95,roughness:.12}));discMesh.position.y=.95;disc.add(discMesh);
+const driver=new THREE.Group();driver.name='Bey_Driver';root.add(driver);const driverMesh=new THREE.Mesh(new THREE.ConeGeometry(.7,1.25,20),new THREE.MeshStandardMaterial({color:'#202636',metalness:.25,roughness:.65}));driverMesh.position.y=.18;driverMesh.rotation.x=Math.PI;driver.add(driverMesh);
+const exporter=new GLTFExporter(),result=await new Promise((resolve,reject)=>exporter.parse(root,resolve,reject,{binary:true,onlyVisible:false}));await writeFile(output,Buffer.from(result));console.log(`${output}: ${Buffer.byteLength(result)} bytes, escala STL ${scale.toFixed(4)}`);

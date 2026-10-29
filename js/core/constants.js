@@ -1,0 +1,10 @@
+export const FIXED_STEP = 1 / 60;
+export const WORLD_RADIUS = 38;
+export const BEY_RADIUS = 2.65;
+export const MAX_SPIN = 1000;
+export const WIN_SCORE = 3;
+export const ROUND_SECONDS = 60;
+export const DEG = Math.PI / 180;
+export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+export const randomBetween = (min, max, random = Math.random) => min + random() * (max - min);
+export const angleDistance = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));

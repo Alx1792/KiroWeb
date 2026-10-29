@@ -1,0 +1,17 @@
+{
+  "name": "bey-battle-ultimate-3d",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Joc web 3D de batalles de baldufes Metal Fury i Burst Evolution",
+  "scripts": {
+    "serve": "node tools/server.mjs",
+    "test": "node --test",
+    "check": "node tools/check.mjs",
+    "test:browser": "node tools/browser-smoke.mjs",
+    "generate-model": "node tools/generate-model.mjs"
+  },
+  "dependencies": {
+    "three": "0.186.1"
+  }
+}

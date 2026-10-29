@@ -1,0 +1,3 @@
+import { readFile } from 'node:fs/promises';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const data=await readFile(process.argv[2]),buffer=data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength);const gltf=await new Promise((resolve,reject)=>new GLTFLoader().parse(buffer,'',resolve,reject));let meshes=0,vertices=0,triangles=0;gltf.scene.traverse((object)=>{if(object.isMesh){meshes++;const geometry=object.geometry;vertices+=geometry.attributes.position.count;triangles+=(geometry.index?geometry.index.count:geometry.attributes.position.count)/3}});console.log(JSON.stringify({meshes,vertices,triangles,animations:gltf.animations.length},null,2));

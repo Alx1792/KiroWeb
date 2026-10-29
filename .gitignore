@@ -1,0 +1,10 @@
+node_modules/
+.env
+*.log
+.DS_Store
+Thumbs.db
+.tmp-browser-smoke/
+smoke-*.txt
+smoke-*.png
+.browser-smoke-result.json
+assets/models/.tasks.json

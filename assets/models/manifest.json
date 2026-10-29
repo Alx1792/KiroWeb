@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "contract": {
+    "units": "normalized at runtime",
+    "beyParts": {
+      "layer": "Bey_Layer",
+      "disc": "Bey_Disc",
+      "driver": "Bey_Driver"
+    }
+  },
+  "models": {
+    "beys:serpent": {
+      "path": "assets/models/beys/serpent.glb",
+      "source": "https://www.3d-printed.org/models/model-960484-spinning-top-two-seperate-halves-requires-glue",
+      "author": "spellbound_shipman",
+      "license": "CC0-1.0",
+      "attribution": "Spinning Top - Two Seperate Halves (Requires Glue) by spellbound_shipman, CC0 1.0",
+      "sourceFile": "assets/models/sources/cc0-spinner-half.stl",
+      "sourceSha256": "e70485e104ed596c71d7723c56d0d3e946f9d699ffed373d0919c0ec172c3cd5",
+      "targetSize": 7.4,
+      "rotation": [0, 0, 0],
+      "offset": [0, 0, 0],
+      "parts": {
+        "layer": "Bey_Layer",
+        "disc": "Bey_Disc",
+        "driver": "Bey_Driver"
+      }
+    }
+  }
+}
