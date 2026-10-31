@@ -1,0 +1,10 @@
+{
+  "name": "bey-battle-metal-fury",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/characterization.test.js",
+    "test:browser": "node tools/browser-smoke.mjs",
+    "check": "node --check js/random.js && node --check js/visuals.js && node --check js/game.js && node --check tests/characterization.test.js"
+  }
+}

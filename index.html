@@ -7,42 +7,70 @@
   <meta name="description" content="Joc PvP retro pixel art de baldufes de batalla inspirat en Metal Fury.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <main class="wrap">
-    <h1 class="sr-only">Bey Battle: Metal Fury</h1>
+    <section class="arcade-machine" aria-labelledby="game-title">
+      <header class="machine-header">
+        <div class="brand-lockup">
+          <h1 id="game-title"><span>Bey Battle:</span> Metal Fury</h1>
+        </div>
+        <div class="local-status" aria-label="Estat: joc local a punt">
+          <span class="status-light" aria-hidden="true"></span>
+          <span>JOC LOCAL</span>
+          <strong>A PUNT</strong>
+        </div>
+      </header>
 
-    <div class="crt">
-      <canvas id="game" width="320" height="240" tabindex="0"
-              aria-label="Joc de batalla de baldufes. Fes servir el teclat per jugar."></canvas>
-      <div class="scanlines" aria-hidden="true"></div>
-    </div>
+      <div class="crt">
+        <div class="screen-frame">
+          <canvas id="game" width="320" height="240" tabindex="0"
+                  aria-label="Joc de batalla de baldufes. Fes servir el teclat per jugar."
+                  aria-describedby="controls">
+            Joc de batalla de baldufes controlat amb teclat. Consulta els controls sota la pantalla.
+          </canvas>
+          <div class="scanlines" aria-hidden="true"></div>
+        </div>
+        <div class="screen-meta" aria-hidden="true">
+          <span>MF-320 // 4:3 PIXEL SYSTEM</span>
+          <span>320 × 240</span>
+        </div>
+      </div>
+    </section>
 
-    <section class="help" aria-label="Controls">
-      <div class="card p1">
-        <h2>JUGADOR 1</h2>
-        <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moure</p>
-        <p><kbd>ESPAI</kbd> llançar / poder</p>
-        <p class="small">En torneig també: fletxes + ENTER</p>
-      </div>
-      <div class="card p2">
-        <h2>JUGADOR 2</h2>
-        <p><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> moure</p>
-        <p><kbd>ENTER</kbd> llançar / poder</p>
-      </div>
-      <div class="card gen">
-        <h2>GENERAL</h2>
-        <p><kbd>ENTER</kbd> confirmar</p>
-        <p><kbd>ESC</kbd> pausa / enrere</p>
-        <p><kbd>M</kbd> música on/off</p>
+    <section class="help" id="controls" aria-labelledby="controls-title">
+      <header class="help-header">
+        <h2 id="controls-title">CONTROLS</h2>
+        <p>TECLAT · 1–2 JUGADORS</p>
+      </header>
+      <div class="controls-grid">
+        <div class="card p1">
+          <h3>JUGADOR 1</h3>
+          <p><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> moure</p>
+          <p><kbd>ESPAI</kbd> llançar / poder</p>
+          <p class="small">En torneig també: fletxes + ENTER</p>
+        </div>
+        <div class="card p2">
+          <h3>JUGADOR 2</h3>
+          <p><kbd>↑</kbd><kbd>←</kbd><kbd>↓</kbd><kbd>→</kbd> moure</p>
+          <p><kbd>ENTER</kbd> llançar / poder</p>
+        </div>
+        <div class="card gen">
+          <h3>GENERAL</h3>
+          <p><kbd>ENTER</kbd> confirmar</p>
+          <p><kbd>ESC</kbd><kbd>P</kbd> pausa / enrere</p>
+          <p><kbd>M</kbd> àudio on/off</p>
+        </div>
       </div>
     </section>
   </main>
 
+  <script src="js/random.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/data.js"></script>
+  <script src="js/visuals.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

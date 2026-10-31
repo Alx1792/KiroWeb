@@ -2,7 +2,11 @@
 /* Chiptune music + SFX with the Web Audio API (no audio files needed). */
 const Sound = (() => {
   let ac = null, master, mus, sfxG, noiseBuf;
-  let muted = false, song = null, step = 0, nextT = 0;
+  let muted = false, song = null, step = 0, nextT = 0, schedulerId = null;
+  const activeVoices = new Set();
+  const lastSfx = Object.create(null);
+  const VOICE_LIMIT = { music: 24, sfx: 32 };
+  const THROTTLE = { hit: 0.045, wall: 0.08, move: 0.035 };
 
   const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
   function freq(n) {
@@ -62,41 +66,127 @@ const Sound = (() => {
   };
   for (const k in SONGS) { SONGS[k].m = parse(SONGS[k].mel); SONGS[k].b = parse(SONGS[k].bass); }
 
-  function init() {
-    if (!ac) {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      ac = new AC();
-      master = ac.createGain(); master.gain.value = muted ? 0 : 0.5; master.connect(ac.destination);
-      mus = ac.createGain(); mus.gain.value = 0.28; mus.connect(master);
-      sfxG = ac.createGain(); sfxG.gain.value = 0.55; sfxG.connect(master);
-      noiseBuf = ac.createBuffer(1, ac.sampleRate * 0.6, ac.sampleRate);
-      const d = noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      setInterval(tick, 25);
+  function disconnect(nodes) {
+    for (const node of nodes) {
+      try { node.disconnect(); } catch (e) { /* already disconnected */ }
     }
-    if (ac.state === 'suspended') ac.resume();
   }
 
-  function tone(f, t, dur, type, vol, dest, slideTo) {
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = type;
-    o.frequency.setValueAtTime(f, t);
-    if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    o.connect(g); g.connect(dest);
-    o.start(t); o.stop(t + dur + 0.02);
+  function releaseVoice(voice) {
+    if (!voice || voice.released) return;
+    voice.released = true;
+    activeVoices.delete(voice);
+    disconnect(voice.nodes);
   }
 
-  function noise(t, dur, vol, dest, filterType = 'highpass', fq = 1000) {
-    const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-    s.buffer = noiseBuf;
-    f.type = filterType; f.frequency.value = fq;
-    g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(dest);
-    s.start(t); s.stop(t + dur + 0.02);
+  function stopVoice(voice) {
+    if (!voice || voice.released) return;
+    try { voice.source.stop(); } catch (e) { /* source may already be stopped */ }
+    releaseVoice(voice);
+  }
+
+  function claimVoice(kind, priority) {
+    const voices = [...activeVoices].filter((voice) => voice.kind === kind);
+    if (voices.length < VOICE_LIMIT[kind]) return true;
+    voices.sort((a, b) => a.priority - b.priority || a.startedAt - b.startedAt);
+    if (voices[0].priority > priority) return false;
+    stopVoice(voices[0]);
+    return true;
+  }
+
+  function trackVoice(source, nodes, kind, priority, startedAt) {
+    const voice = { source, nodes, kind, priority, startedAt, released: false };
+    source.onended = () => releaseVoice(voice);
+    activeVoices.add(voice);
+    return voice;
+  }
+
+  function clearAudioGraph() {
+    for (const voice of [...activeVoices]) stopVoice(voice);
+    disconnect([mus, sfxG, master].filter(Boolean));
+    ac = null; master = null; mus = null; sfxG = null; noiseBuf = null;
+    nextT = 0;
+  }
+
+  function ensureScheduler() {
+    if (schedulerId == null && typeof setInterval === 'function') schedulerId = setInterval(tick, 25);
+  }
+
+  function init() {
+    if (ac && ac.state === 'closed') clearAudioGraph();
+    if (!ac) {
+      const root = typeof window !== 'undefined' ? window : globalThis;
+      const AC = root && (root.AudioContext || root.webkitAudioContext);
+      if (!AC) return;
+      let ctx, nextMaster, nextMus, nextSfx, nextNoise;
+      try {
+        ctx = new AC();
+        nextMaster = ctx.createGain(); nextMaster.gain.value = muted ? 0 : 0.5; nextMaster.connect(ctx.destination);
+        nextMus = ctx.createGain(); nextMus.gain.value = 0.28; nextMus.connect(nextMaster);
+        nextSfx = ctx.createGain(); nextSfx.gain.value = 0.55; nextSfx.connect(nextMaster);
+        nextNoise = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * 0.6), ctx.sampleRate);
+        const d = nextNoise.getChannelData(0);
+        for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      } catch (e) {
+        disconnect([nextMus, nextSfx, nextMaster].filter(Boolean));
+        if (ctx && ctx.state !== 'closed' && typeof ctx.close === 'function') {
+          try {
+            const closing = ctx.close();
+            if (closing && typeof closing.catch === 'function') closing.catch(() => {});
+          } catch (closeError) { /* unusable context */ }
+        }
+        return;
+      }
+      ac = ctx; master = nextMaster; mus = nextMus; sfxG = nextSfx; noiseBuf = nextNoise;
+      ensureScheduler();
+    }
+    if (ac.state !== 'running' && ac.state !== 'closed' && typeof ac.resume === 'function') {
+      try {
+        const resuming = ac.resume();
+        if (resuming && typeof resuming.catch === 'function') resuming.catch(() => {});
+      } catch (e) { /* later gestures can retry */ }
+    }
+  }
+
+  function tone(f, t, dur, type, vol, dest, slideTo, priority = 1) {
+    if (!ac || !dest || !Number.isFinite(f) || f <= 0 || !Number.isFinite(dur) || dur <= 0) return;
+    const kind = dest === sfxG ? 'sfx' : 'music';
+    if (!claimVoice(kind, priority)) return;
+    let o, g, voice;
+    try {
+      o = ac.createOscillator(); g = ac.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(f, t);
+      if (slideTo && slideTo > 0) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+      g.gain.setValueAtTime(Math.max(0.0001, vol), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(dest);
+      voice = trackVoice(o, [o, g], kind, priority, t);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch (e) {
+      if (voice) stopVoice(voice);
+      else disconnect([o, g].filter(Boolean));
+    }
+  }
+
+  function noise(t, dur, vol, dest, filterType = 'highpass', fq = 1000, priority = 1) {
+    if (!ac || !dest || !noiseBuf || !Number.isFinite(dur) || dur <= 0) return;
+    const kind = dest === sfxG ? 'sfx' : 'music';
+    if (!claimVoice(kind, priority)) return;
+    let s, f, g, voice;
+    try {
+      s = ac.createBufferSource(); f = ac.createBiquadFilter(); g = ac.createGain();
+      s.buffer = noiseBuf;
+      f.type = filterType; f.frequency.setValueAtTime(fq, t);
+      g.gain.setValueAtTime(Math.max(0.0001, vol), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      s.connect(f); f.connect(g); g.connect(dest);
+      voice = trackVoice(s, [s, f, g], kind, priority, t);
+      s.start(t); s.stop(t + dur + 0.02);
+    } catch (e) {
+      if (voice) stopVoice(voice);
+      else disconnect([s, f, g].filter(Boolean));
+    }
   }
 
   function drums(i, t) {
@@ -141,42 +231,88 @@ const Sound = (() => {
     song = s; step = 0; nextT = 0;
   }
 
-  function seq(notes, gap, type = 'square', vol = 0.15) {
+  function seq(notes, gap, type = 'square', vol = 0.15, priority = 2) {
     const t0 = ac.currentTime;
-    notes.forEach((n, i) => { if (n) tone(freq(n), t0 + i * gap, gap * 1.6, type, vol, sfxG); });
+    notes.forEach((n, i) => {
+      if (n) tone(freq(n), t0 + i * gap, gap * 1.6, type, vol, sfxG, null, priority);
+    });
   }
 
   function sfx(name, k = 1) {
     if (!ac || ac.state !== 'running') return;
     const t = ac.currentTime;
+    if (THROTTLE[name] && lastSfx[name] != null && t - lastSfx[name] < THROTTLE[name]) return;
+    if (THROTTLE[name]) lastSfx[name] = t;
+    const strength = Math.min(1, Math.max(0.3, Number.isFinite(Number(k)) ? Number(k) : 1));
     switch (name) {
-      case 'hit':
-        noise(t, 0.08, 0.35 * k, sfxG, 'highpass', 900);
-        tone(260 + 200 * k, t, 0.09, 'square', 0.12 * k, sfxG, 70);
+      case 'hit': {
+        const hard = strength > 0.72;
+        noise(t, 0.045 + 0.035 * strength, 0.22 + 0.13 * strength, sfxG, 'highpass', 700 + 1000 * strength, 0);
+        tone(180 + 300 * strength, t, 0.065 + 0.025 * strength, hard ? 'sawtooth' : 'square', 0.07 + 0.05 * strength, sfxG, 55 + 20 * strength, 0);
+        if (hard) tone(900 + 500 * strength, t, 0.035, 'square', 0.045, sfxG, 420, 0);
         break;
-      case 'wall': tone(140, t, 0.06, 'square', 0.08, sfxG, 60); break;
+      }
+      case 'wall':
+        tone(175, t, 0.075, 'square', 0.075, sfxG, 62, 0);
+        noise(t, 0.035, 0.085, sfxG, 'bandpass', 1350, 0);
+        break;
       case 'launch':
+        tone(165, t, 0.34, 'sawtooth', 0.11, sfxG, 1100, 3);
+        tone(330, t + 0.06, 0.24, 'square', 0.055, sfxG, 880, 3);
+        noise(t, 0.24, 0.11, sfxG, 'bandpass', 2100, 3);
+        break;
       case 'go':
-        tone(220, t, 0.45, 'sawtooth', 0.14, sfxG, 1400);
-        noise(t, 0.4, 0.15, sfxG, 'bandpass', 2500);
+        tone(220, t, 0.38, 'sawtooth', 0.13, sfxG, 1500, 3);
+        noise(t, 0.26, 0.13, sfxG, 'bandpass', 2600, 3);
+        tone(880, t + 0.08, 0.11, 'square', 0.065, sfxG, 1760, 3);
         break;
-      case 'count': tone(440, t, 0.12, 'square', 0.14, sfxG); break;
-      case 'lock': tone(990, t, 0.06, 'square', 0.12, sfxG); break;
-      case 'move': tone(440, t, 0.03, 'square', 0.06, sfxG); break;
-      case 'select': tone(660, t, 0.05, 'square', 0.1, sfxG); tone(990, t + 0.05, 0.06, 'square', 0.1, sfxG); break;
-      case 'back': tone(330, t, 0.08, 'square', 0.1, sfxG, 200); break;
-      case 'special': seq(['C5', 'E5', 'G5', 'C6', 'E6', 'G6'], 0.05); break;
-      case 'shock': noise(t, 0.4, 0.4, sfxG, 'lowpass', 600); tone(200, t, 0.4, 'square', 0.15, sfxG, 40); break;
-      case 'fire': noise(t, 0.3, 0.25, sfxG, 'lowpass', 1500); break;
-      case 'point': tone(880, t, 0.1, 'square', 0.14, sfxG); tone(1175, t + 0.1, 0.25, 'square', 0.14, sfxG); break;
-      case 'ringout': tone(700, t, 0.6, 'square', 0.14, sfxG, 70); break;
+      case 'count': tone(440, t, 0.12, 'square', 0.14, sfxG, null, 2); break;
+      case 'lock': tone(990, t, 0.06, 'square', 0.12, sfxG, null, 2); break;
+      case 'move': tone(440, t, 0.03, 'square', 0.06, sfxG, 520, 0); break;
+      case 'select': tone(660, t, 0.05, 'square', 0.1, sfxG, null, 2); tone(990, t + 0.05, 0.06, 'square', 0.1, sfxG, null, 2); break;
+      case 'back': tone(330, t, 0.08, 'square', 0.1, sfxG, 200, 2); break;
+      case 'special':
+        seq(['C5', 'E5', 'G5', 'C6', 'E6', 'G6'], 0.05, 'square', 0.14, 4);
+        tone(180, t, 0.34, 'sawtooth', 0.055, sfxG, 900, 4);
+        break;
+      case 'shock':
+        noise(t, 0.34, 0.36, sfxG, 'lowpass', 650, 3);
+        tone(210, t, 0.36, 'square', 0.14, sfxG, 42, 3);
+        tone(1250, t, 0.055, 'square', 0.06, sfxG, 380, 3);
+        break;
+      case 'fire':
+        noise(t, 0.24, 0.25, sfxG, 'lowpass', 1650, 3);
+        tone(170, t, 0.22, 'sawtooth', 0.085, sfxG, 65, 3);
+        tone(680, t, 0.12, 'square', 0.055, sfxG, 230, 3);
+        break;
+      case 'point':
+        tone(880, t, 0.08, 'square', 0.13, sfxG, null, 4);
+        tone(1175, t + 0.085, 0.12, 'square', 0.14, sfxG, null, 4);
+        tone(1568, t + 0.2, 0.18, 'square', 0.11, sfxG, null, 4);
+        break;
+      case 'ringout':
+        tone(720, t, 0.52, 'square', 0.14, sfxG, 68, 4);
+        tone(1080, t + 0.04, 0.16, 'triangle', 0.075, sfxG, 260, 4);
+        break;
       case 'burst':
-        noise(t, 0.6, 0.5, sfxG, 'lowpass', 900);
-        tone(320, t, 0.6, 'sawtooth', 0.16, sfxG, 30);
+        noise(t, 0.52, 0.44, sfxG, 'lowpass', 950, 4);
+        tone(340, t, 0.54, 'sawtooth', 0.15, sfxG, 32, 4);
+        tone(760, t, 0.18, 'square', 0.075, sfxG, 95, 4);
         break;
-      case 'win': seq(['C5', 'E5', 'G5', 'C6', null, 'G5', 'C6', null, null], 0.12); break;
-      case 'lose': seq(['G4', 'F#4', 'F4', 'E4', null, 'C4'], 0.18, 'triangle', 0.25); break;
-      case 'vs': noise(t, 0.5, 0.3, sfxG, 'bandpass', 800); tone(110, t, 0.6, 'sawtooth', 0.18, sfxG, 55); break;
+      case 'win':
+        seq(['C5', 'E5', 'G5', 'C6', null, 'G5', 'C6', null, null], 0.12, 'square', 0.15, 4);
+        tone(freq('C4'), t, 0.72, 'triangle', 0.09, sfxG, freq('C5'), 4);
+        break;
+      case 'lose':
+        seq(['G4', 'F#4', 'F4', 'E4', null, 'C4'], 0.18, 'triangle', 0.24, 4);
+        tone(freq('C3'), t + 0.72, 0.26, 'square', 0.075, sfxG, freq('C2'), 4);
+        break;
+      case 'vs':
+        noise(t, 0.46, 0.3, sfxG, 'bandpass', 820, 4);
+        tone(115, t, 0.56, 'sawtooth', 0.17, sfxG, 55, 4);
+        tone(440, t + 0.08, 0.08, 'square', 0.07, sfxG, 880, 4);
+        tone(660, t + 0.2, 0.08, 'square', 0.07, sfxG, 1320, 4);
+        break;
     }
   }
 
